@@ -1,12 +1,17 @@
 # Mobile Legends Traffic Analysis Report
 
 ## Pendahuluan
-Dokumen ini berisi hasil riset reverse engineering mendalam terhadap lalu lintas jaringan (network traffic) dari game Mobile Legends, berdasarkan analisis file PCAP `hasil-awal-game.pcap` dan `nyambung -kembali-ke-game.pcap`. Riset ini mencakup struktur protokol, pola handshake, enkripsi, dan penilaian kerentanan keamanan.
+Dokumen ini berisi hasil riset reverse engineering mendalam terhadap lalu lintas jaringan (network traffic) dari game Mobile Legends, berdasarkan analisis file PCAP:
+1.  `hasil-awal-game.pcap` (Login/Reconnect)
+2.  `nyambung -kembali-ke-game.pcap` (Reconnect)
+3.  `saat-dalam-pertandingan.pcap` (Gameplay/Sync)
+
+Riset ini mencakup struktur protokol, pola handshake, enkripsi, dan penilaian kerentanan keamanan.
 
 ## Ringkasan Eksekutif
 *   **Protokol Utama:** UDP (Custom Reliable Protocol)
-*   **Port Server:** 5508 (Game Logic), Port 30xxx (Voice/Chat)
-*   **Server IP Utama:** `103.157.33.7` (Game Server), `203.175.x.x` (Voice Server)
+*   **Port Server:** 5508, 5513 (Game Logic), Port 30xxx (Voice/Chat)
+*   **Server IP Utama:** `103.157.33.7` (Login), `103.157.33.8` (Game)
 *   **Struktur Paket:** Header kustom 14-byte (Magic Byte `0x01` + Command + Session ID + Seq/Ack).
 *   **Keamanan:** Enkripsi lemah atau tidak ada pada *control flow*. String seperti IP dan "Voice_" dikirim dalam bentuk *cleartext*.
 *   **Kerentanan:** Potensi amplifikasi UDP (DDoS) ~10x dan *Information Leakage* (IP & Session ID).
@@ -17,11 +22,12 @@ Dokumen ini berisi hasil riset reverse engineering mendalam terhadap lalu lintas
 Komunikasi utama dalam pertandingan (in-match) menggunakan protokol UDP yang dimodifikasi untuk keandalan (*reliability*).
 
 *   **Transport Layer:** UDP
-*   **Game Tick Rate:** Estimasi **~16 Hz** (1 paket setiap ~60-63 ms).
-    *   *Catatan:* Rate ini cukup rendah untuk game MOBA, yang mungkin menjelaskan tingginya jitter (~30ms) yang terukur.
+*   **Game Tick Rate:** Estimasi **~15.4 - 16 Hz** (1 paket setiap ~60-65 ms) selama fase sinkronisasi/reconnect.
+    *   *Catatan:* Tick rate ini konsisten rendah pada semua file sampel, mengindikasikan bahwa file-file tersebut menangkap fase *loading state* berat, bukan *smooth gameplay* (yang biasanya 30/60 Hz).
 *   **Pola Koneksi:**
     *   Klien menggunakan port dinamis.
     *   Saat *reconnect*, klien melakukan handshake ulang dan mendapatkan Session ID baru.
+    *   Server game berpindah port (misal dari 5508 ke 5513) tergantung pada *match instance*.
 
 ---
 
@@ -41,22 +47,17 @@ Berdasarkan analisis ribuan paket, ditemukan pola header tetap berukuran 14 byte
 ### Jenis Command Teridentifikasi
 1.  **0x71 (Client Hello):** Paket inisiasi koneksi. Mengandung *string* identifikasi terbalik/scrambled: `eH tSEb abom ELIBOm` -> *"Mobile MOBA Best He..."* (Mobile Legends).
 2.  **0x72 (Server Hello):** Respons server memberikan **Session ID** baru.
-3.  **0x75 (Handover/Verify):** Klien mengonfirmasi sesi baru.
-4.  **0x51 (Reliable Data):** Paket data utama (Payload posisi/skill/chat). Membawa data string *cleartext* pada fase awal.
-5.  **0x52 (Ack/Heartbeat):** Paket kecil (~10 bytes payload) untuk menjaga koneksi tetap hidup (*Keep-alive*) dan mengonfirmasi penerimaan data (ACK).
+3.  **0x75 (Handover/Verify):** Klien mengonfirmasi sesi baru. **Dominan pada file sampel (>94%)**, menandakan fase sinkronisasi data yang panjang.
+4.  **0x51 (Reliable Data):** Paket data utama (Payload posisi/skill/chat).
+5.  **0x52 (Ack/Heartbeat):** Paket kecil (~10 bytes payload) untuk *Keep-alive*.
 
 ---
 
-## 3. Analisis Proses Handshake (Reconnect Flow)
-Analisis mendalam pada `nyambung -kembali-ke-game.pcap`:
+## 3. Analisis Proses Handshake & Reconnect
+Analisis mendalam pada `saat-dalam-pertandingan.pcap` dan file lainnya:
 
-1.  **Klien (0x71):** Mengirim paket inisiasi dengan Session ID lama atau 0.
-    *   *Payload:* Mengandung string "Magic" protokol (terbalik).
-2.  **Server (0x72):** Merespons dengan **Session ID Baru** (contoh: `31aef586`).
-3.  **Klien (0x75):** Mengirim konfirmasi handshake.
-4.  **Reset Sequence:** Klien mereset Sequence Number kembali ke 0.
-5.  **Data Exchange (0x51):** Pertukaran data dimulai.
-    *   *Temuan Menarik:* Paket awal mengandung string terbaca seperti `Voice_498057...` dan IP `203.175...`, menunjukkan konfigurasi Voice Chat dikirim tanpa enkripsi penuh.
+1.  **Dominasi Command 0x75:** Pada file gameplay yang baru, 94.7% trafik adalah command `0x75`. Ini bukan *active gameplay*, melainkan **Handover Loop**. Klien dan server terus menerus menyinkronkan state (kemungkinan karena koneksi tidak stabil atau packet loss tinggi).
+2.  **State Snapshot:** Paket `0x51` yang muncul memiliki ukuran besar (300-500 bytes) dan frekuensi rendah, ciri khas pengiriman *State Snapshot* (posisi semua hero, minion, turret) sekaligus, bukan update pergerakan *delta* yang kecil.
 
 ---
 
@@ -67,55 +68,30 @@ Analisis mendalam pada `nyambung -kembali-ke-game.pcap`:
 *   **Mekanisme:** Mengirim paket `0x71` kecil (52 bytes) dengan IP sumber palsu (korban).
 *   **Dampak:** Server merespons dengan paket `0x72` yang jauh lebih besar (~540 bytes).
 *   **Faktor Amplifikasi:** **~10.25x**.
-*   **Risiko:** Tinggi. Penyerang dapat menggunakan server game sebagai *reflector* untuk membanjiri target lain.
+*   **Risiko:** Tinggi. Penyerang dapat menggunakan server game sebagai *reflector*.
 
 ### B. Enkripsi & Privasi (Information Leakage)
 *   **Analisis Entropi:** Rata-rata entropi payload adalah **4.2 - 4.4 bits/byte**.
 *   **Kesimpulan:** Data **TIDAK TERENKRIPSI PENUH**. Entropi rendah menunjukkan data kemungkinan hanya dikompresi ringan atau berupa struktur biner mentah.
-*   **Bukti:** Ditemukannya string ASCII *cleartext* (IP Address, Config Voice) dalam payload membuktikan kurangnya enkripsi pada *control plane*. Ini memudahkan *Man-in-the-Middle* (MitM) untuk menyadap komunikasi atau memanipulasi fitur chat/voice.
+*   **Bukti:** String ASCII *cleartext* (IP Address, Config Voice) ditemukan dalam payload.
 
 ### C. Session Hijacking
 *   **Session ID** dikirim *cleartext* di setiap header.
-*   Jika penyerang dapat mengendus (sniff) jaringan (misal di Wi-Fi publik), mereka dapat dengan mudah mengambil Session ID dan melakukan *Packet Injection* (misal: mengirim paket `0x51` palsu untuk membuat karakter diam atau disconnect).
+*   Jika penyerang dapat mengendus (sniff) jaringan, mereka dapat mengambil Session ID dan melakukan *Packet Injection*.
 
 ---
 
 ## Lampiran Teknis Lanjutan
 
-### A. Fingerprint Protokol (Distribusi Byte)
-Berdasarkan analisis frekuensi byte pada 32 byte pertama payload (setelah header):
-*   **Offset 00 (Sub-command/Opcode):** Sangat bervariasi (Entropi ~7.9), menunjukkan banyak jenis operasi game.
-*   **Offset 01-07 (Control Fields):** Entropi rendah (~1.8 - 2.8).
-    *   Offset 03 didominasi oleh byte `0x70` atau `0x01` (~50% frekuensi).
-    *   Pola byte tetap ini (`45 03 70 ...`) kemungkinan besar adalah header untuk struktur data posisi/objek.
-*   **Offset 08+ (Dynamic Data):** Entropi meningkat (~5-6 bits), menandakan data dinamis seperti koordinat X/Y/Z atau Timestamp.
+### A. Fingerprint Protokol
+*   **Offset 00 (Sub-command):** Sangat bervariasi.
+*   **Offset 01-07 (Control Fields):** Pola tetap `45 03 70 ...` sering muncul, kemungkinan header objek game.
 
-### B. Diagram Mesin Status (State Machine)
-Berdasarkan probabilitas transisi perintah pada fase *reconnect*:
-
-```mermaid
-graph TD;
-    S_Start((Start)) -->|0x71 Client Hello| S_Handshake;
-    S_Handshake -->|0x72 Server Hello| S_Verify;
-    S_Verify -->|0x75 Handover Loop| S_Verify;
-    S_Verify -->|0x51 Game Data| S_Active;
-    S_Active -->|0x51 Data| S_Active;
-    S_Active -->|0x52 Ack| S_Active;
-    S_Active -->|Timeout/Error| S_Start;
-```
-
-*   **Loop Dominan:** `0x75` <-> `0x75` (Handover/Sync State) terjadi >35% dari total trafik saat reconnect, menandakan fase sinkronisasi state game sebelum gameplay aktif dimulai.
-
-### C. Hipotesis Enkripsi (XOR Analysis)
-Uji coba brute-force kunci XOR 1-byte tidak menemukan kunci statis global. Dikombinasikan dengan temuan string ASCII *cleartext*, disimpulkan bahwa protokol ini menggunakan **Binary Serialization (tanpa enkripsi)** untuk kecepatan, bukan enkripsi kriptografis. "Obfuscation" yang terlihat hanyalah format data biner (struct/protobuf) yang padat.
-
-### D. Analisis Semantik & Gameplay
-Analisis klaster sub-command pada paket `0x51` (Game Data) menunjukkan:
-*   **Fase Loading Dominan:** File PCAP yang diberikan lebih merepresentasikan fase *Loading Screen* atau *Sync* daripada *Active Gameplay*.
-    *   Tidak ditemukan aliran paket pergerakan frekuensi tinggi (~30Hz) yang kecil (~40 bytes).
-    *   Sebaliknya, ditemukan paket besar (300-500 bytes) dengan frekuensi rendah (<1%), yang merupakan ciri khas **State Snapshot** (server mengirim seluruh data map/hero sekaligus).
-*   **Koordinat Statis:** Pemindaian pola `float32` menemukan koordinat yang cenderung statis (misal: `0.50, 8.02, 128.26`), yang kemungkinan besar adalah titik spawn atau inisiasi kamera, bukan pergerakan pemain aktif.
-*   **Retransmisi Masif:** Rasio paket yang diterima vs *Unique Sequence Number* sangat tinggi (28k paket untuk 438 sequence unik). Ini mengonfirmasi bahwa selama fase *handover/reconnect*, server melakukan retransmisi agresif untuk memastikan klien menerima data kritis sebelum masuk ke game.
+### B. Analisis Gameplay (File Baru)
+File `saat-dalam-pertandingan.pcap` (IP Server `103.157.33.8`, Port `5513`) mengonfirmasi temuan sebelumnya:
+*   **Tick Rate Rendah (~15 Hz):** Konsisten dengan mode *Safety/Sync*.
+*   **Packet Loss/Retransmission:** Sangat tinggi. Indikasi koneksi buruk atau mekanisme *Reliable UDP* yang agresif saat paket drop.
+*   **Kesimpulan:** Sampel trafik yang ada lebih merepresentasikan kondisi jaringan buruk (lag/reconnect) daripada kondisi ideal.
 
 ---
 *Dibuat oleh Jules (AI Researcher) untuk analisis trafik jaringan Mobile Legends.*
