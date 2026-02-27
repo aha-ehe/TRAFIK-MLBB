@@ -46,4 +46,16 @@ def analyze_subcommands(filename, target_ip, target_port):
 
         print(f"Opcode: 0x{opcode:02x} | Count: {count} ({freq:5.2f}%) | Size: {avg_size:.1f} ({min_size}-{max_size}) | Type: {guess}")
 
-analyze_subcommands("nyambung -kembali-ke-game.pcap", "103.157.33.7", 5508)
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_semantic.py <pcap_file> [target_ip] [target_port]")
+        print("Example: python3 analyze_semantic.py game.pcap 103.157.33.7 5508")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    analyze_subcommands(filename, ip, port)

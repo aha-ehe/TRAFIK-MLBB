@@ -48,8 +48,15 @@ def analyze_udp_payload(filename, target_ip, target_port):
             common = max(set(first_bytes), key=first_bytes.count)
             print(f"Most common first 2 bytes (Incoming): {binascii.hexlify(common).decode()}")
 
-print("\n--- Payload Analysis: Initial Game ---")
-analyze_udp_payload("hasil-awal-game.pcap", "103.157.33.7", 5508)
+import sys
 
-print("\n--- Payload Analysis: Reconnect ---")
-analyze_udp_payload("nyambung -kembali-ke-game.pcap", "103.157.33.7", 5508)
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_payload.py <pcap_file> [target_ip] [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    analyze_udp_payload(filename, ip, port)

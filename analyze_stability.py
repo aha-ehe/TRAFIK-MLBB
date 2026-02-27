@@ -53,5 +53,15 @@ def analyze_stability(filename, target_ip, target_port):
     # (Simple logic: sequence of packets with very close timestamps)
     # Using timestamps requires the packet objects again, skipped for brevity in this specific script.
 
-analyze_stability("hasil-awal-game.pcap", "103.157.33.7", 5508)
-analyze_stability("nyambung -kembali-ke-game.pcap", "103.157.33.7", 5508)
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_stability.py <pcap_file> [target_ip] [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    analyze_stability(filename, ip, port)

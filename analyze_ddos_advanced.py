@@ -117,5 +117,12 @@ def advanced_ddos_analysis(filenames):
         print(f"     Packets containing Voice Config/IP: {voice_packets}")
         print(f"     Status: MEDIUM (Secondary Reflector / Info Leak)")
 
-# Run analysis
-advanced_ddos_analysis(["hasil-awal-game.pcap", "nyambung -kembali-ke-game.pcap", "external_repo/saat-dalam-pertandingan.pcap"])
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_ddos_advanced.py <pcap_file1> [pcap_file2 ...]")
+        sys.exit(1)
+
+    filenames = sys.argv[1:]
+    advanced_ddos_analysis(filenames)

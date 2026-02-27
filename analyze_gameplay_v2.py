@@ -51,4 +51,11 @@ def analyze_gameplay_deep(filename, target_ip="103.157.33.8", target_port=5513):
     if payload_sizes:
         print(f"\nPacket Sizes: Avg={statistics.mean(payload_sizes):.1f}, Median={statistics.median(payload_sizes):.1f}")
 
-analyze_gameplay_deep("external_repo/saat-dalam-pertandingan.pcap")
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_gameplay_v2.py <pcap_file>")
+        sys.exit(1)
+
+    analyze_gameplay_deep(sys.argv[1])

@@ -48,5 +48,15 @@ def visualize_byte_frequency(filename, target_ip, target_port):
 
         print(f"{i:02d}     | {byte_hex}                | {freq:6.2f}%      | {entropy:.2f}")
 
-visualize_byte_frequency("hasil-awal-game.pcap", "103.157.33.7", 5508)
-visualize_byte_frequency("nyambung -kembali-ke-game.pcap", "103.157.33.7", 5508)
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_fingerprint.py <pcap_file> [target_ip] [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    visualize_byte_frequency(filename, ip, port)

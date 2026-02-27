@@ -53,8 +53,11 @@ def analyze_pcap(filename):
     for convo, count in sorted_udp[:5]:
         print(f"{convo}: {count} packets")
 
-print("\n--- Analysis of Initial Game ---")
-analyze_pcap("hasil-awal-game.pcap")
+import sys
 
-print("\n--- Analysis of Reconnect ---")
-analyze_pcap("nyambung -kembali-ke-game.pcap")
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_pcap.py <pcap_file>")
+        sys.exit(1)
+
+    analyze_pcap(sys.argv[1])

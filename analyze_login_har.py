@@ -41,5 +41,11 @@ def analyze_har(filename):
     for m, u in auth_endpoints[:10]:
         print(f"{m} {u[:100]}...") # Truncate long URLs
 
-analyze_har("external_repo/login-dari-awal-bagian-1.har")
-analyze_har("external_repo/login-dari-awal-bagian-2.har")
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_login_har.py <har_file>")
+        sys.exit(1)
+
+    analyze_har(sys.argv[1])

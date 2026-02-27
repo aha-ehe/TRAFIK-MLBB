@@ -58,5 +58,15 @@ def scan_for_coordinates(filename, target_ip, target_port):
             count += 1
             if count >= 5: break
 
-scan_for_coordinates("hasil-awal-game.pcap", "103.157.33.7", 5508)
-scan_for_coordinates("nyambung -kembali-ke-game.pcap", "103.157.33.7", 5508)
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_coordinates.py <pcap_file> [target_ip] [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    scan_for_coordinates(filename, ip, port)

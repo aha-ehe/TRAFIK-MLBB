@@ -47,4 +47,15 @@ def analyze_xor_keys(filename, target_ip, target_port):
     for k, count in inv_counter.most_common(5):
          print(f"Inv: 0x{k:02x} | Count: {count}")
 
-analyze_xor_keys("hasil-awal-game.pcap", "103.157.33.7", 5508)
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_crypto.py <pcap_file> [target_ip] [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    analyze_xor_keys(filename, ip, port)

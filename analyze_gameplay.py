@@ -69,4 +69,14 @@ def analyze_gameplay(filename, target_port=5508):
         print(f"Average Packet Size: {statistics.mean(payload_sizes):.2f} bytes")
         print(f"Median Packet Size: {statistics.median(payload_sizes):.2f} bytes")
 
-analyze_gameplay("external_repo/saat-dalam-pertandingan.pcap")
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_gameplay.py <pcap_file> [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    port = int(sys.argv[2]) if len(sys.argv) > 2 else 5508
+
+    analyze_gameplay(filename, port)

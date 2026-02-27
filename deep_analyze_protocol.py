@@ -75,5 +75,15 @@ def deep_analyze(filename, target_ip, target_port):
     unique_sessions = set(p['session_id'] for p in outgoing_headers)
     print(f"\nUnique Session IDs found in Outgoing: {unique_sessions}")
 
-deep_analyze("hasil-awal-game.pcap", "103.157.33.7", 5508)
-deep_analyze("nyambung -kembali-ke-game.pcap", "103.157.33.7", 5508)
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 deep_analyze_protocol.py <pcap_file> [target_ip] [target_port]")
+        sys.exit(1)
+
+    filename = sys.argv[1]
+    ip = sys.argv[2] if len(sys.argv) > 2 else "103.157.33.7"
+    port = int(sys.argv[3]) if len(sys.argv) > 3 else 5508
+
+    deep_analyze(filename, ip, port)

@@ -64,5 +64,11 @@ def verify_structure(filename):
     print(f"Valid Header Matches (Magic 0x01): {valid_count}")
     print(f"Match Rate: {valid_count/total_count*100:.2f}%")
 
+import sys
+
 if __name__ == "__main__":
-    verify_structure("hasil-awal-game.pcap")
+    if len(sys.argv) < 2:
+        print("Usage: python3 verify_packet.py <pcap_file>")
+        sys.exit(1)
+
+    verify_structure(sys.argv[1])

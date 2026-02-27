@@ -62,4 +62,11 @@ def analyze_har(filename):
              print(f"Found IP/Port info in: {call['url']}")
              print(f"Snippet: {text}")
 
-analyze_har("1.har")
+import sys
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python3 analyze_har_full.py <har_file>")
+        sys.exit(1)
+
+    analyze_har(sys.argv[1])
