@@ -109,5 +109,13 @@ graph TD;
 ### C. Hipotesis Enkripsi (XOR Analysis)
 Uji coba brute-force kunci XOR 1-byte tidak menemukan kunci statis global. Dikombinasikan dengan temuan string ASCII *cleartext*, disimpulkan bahwa protokol ini menggunakan **Binary Serialization (tanpa enkripsi)** untuk kecepatan, bukan enkripsi kriptografis. "Obfuscation" yang terlihat hanyalah format data biner (struct/protobuf) yang padat.
 
+### D. Analisis Semantik & Gameplay
+Analisis klaster sub-command pada paket `0x51` (Game Data) menunjukkan:
+*   **Fase Loading Dominan:** File PCAP yang diberikan lebih merepresentasikan fase *Loading Screen* atau *Sync* daripada *Active Gameplay*.
+    *   Tidak ditemukan aliran paket pergerakan frekuensi tinggi (~30Hz) yang kecil (~40 bytes).
+    *   Sebaliknya, ditemukan paket besar (300-500 bytes) dengan frekuensi rendah (<1%), yang merupakan ciri khas **State Snapshot** (server mengirim seluruh data map/hero sekaligus).
+*   **Koordinat Statis:** Pemindaian pola `float32` menemukan koordinat yang cenderung statis (misal: `0.50, 8.02, 128.26`), yang kemungkinan besar adalah titik spawn atau inisiasi kamera, bukan pergerakan pemain aktif.
+*   **Retransmisi Masif:** Rasio paket yang diterima vs *Unique Sequence Number* sangat tinggi (28k paket untuk 438 sequence unik). Ini mengonfirmasi bahwa selama fase *handover/reconnect*, server melakukan retransmisi agresif untuk memastikan klien menerima data kritis sebelum masuk ke game.
+
 ---
 *Dibuat oleh Jules (AI Researcher) untuk analisis trafik jaringan Mobile Legends.*
