@@ -80,11 +80,34 @@ Analisis mendalam pada `nyambung -kembali-ke-game.pcap`:
 
 ---
 
-## 5. Kesimpulan Riset
-Mobile Legends menggunakan protokol UDP kustom yang efisien namun **lemah dari sisi keamanan**.
-1.  **Tidak ada enkripsi penuh** pada header maupun payload kontrol, mengekspos data sensitif (IP Voice Server, Session ID).
-2.  **Mekanisme Handshake** rentan terhadap serangan amplifikasi DDoS.
-3.  **Integritas Sesi** bergantung sepenuhnya pada Session ID 4-byte yang mudah disadap, membuka celah untuk serangan injeksi paket.
+## Lampiran Teknis Lanjutan
+
+### A. Fingerprint Protokol (Distribusi Byte)
+Berdasarkan analisis frekuensi byte pada 32 byte pertama payload (setelah header):
+*   **Offset 00 (Sub-command/Opcode):** Sangat bervariasi (Entropi ~7.9), menunjukkan banyak jenis operasi game.
+*   **Offset 01-07 (Control Fields):** Entropi rendah (~1.8 - 2.8).
+    *   Offset 03 didominasi oleh byte `0x70` atau `0x01` (~50% frekuensi).
+    *   Pola byte tetap ini (`45 03 70 ...`) kemungkinan besar adalah header untuk struktur data posisi/objek.
+*   **Offset 08+ (Dynamic Data):** Entropi meningkat (~5-6 bits), menandakan data dinamis seperti koordinat X/Y/Z atau Timestamp.
+
+### B. Diagram Mesin Status (State Machine)
+Berdasarkan probabilitas transisi perintah pada fase *reconnect*:
+
+```mermaid
+graph TD;
+    S_Start((Start)) -->|0x71 Client Hello| S_Handshake;
+    S_Handshake -->|0x72 Server Hello| S_Verify;
+    S_Verify -->|0x75 Handover Loop| S_Verify;
+    S_Verify -->|0x51 Game Data| S_Active;
+    S_Active -->|0x51 Data| S_Active;
+    S_Active -->|0x52 Ack| S_Active;
+    S_Active -->|Timeout/Error| S_Start;
+```
+
+*   **Loop Dominan:** `0x75` <-> `0x75` (Handover/Sync State) terjadi >35% dari total trafik saat reconnect, menandakan fase sinkronisasi state game sebelum gameplay aktif dimulai.
+
+### C. Hipotesis Enkripsi (XOR Analysis)
+Uji coba brute-force kunci XOR 1-byte tidak menemukan kunci statis global. Dikombinasikan dengan temuan string ASCII *cleartext*, disimpulkan bahwa protokol ini menggunakan **Binary Serialization (tanpa enkripsi)** untuk kecepatan, bukan enkripsi kriptografis. "Obfuscation" yang terlihat hanyalah format data biner (struct/protobuf) yang padat.
 
 ---
 *Dibuat oleh Jules (AI Researcher) untuk analisis trafik jaringan Mobile Legends.*
